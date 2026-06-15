@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google 文件轉 Blogger HTML</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="tool-hero">
+        <div class="hero-copy">
+          <div class="section-label">
+            <span class="pulse-dot"></span>
+            <span>Blogger HTML Builder</span>
+          </div>
+          <h1>Google 文件轉 <span>Blogger HTML</span></h1>
+        </div>
+
+        <aside class="signal-card" aria-label="轉換狀態">
+          <div class="signal-ring" aria-hidden="true"></div>
+          <div class="signal-content">
+            <span>STATUS</span>
+            <strong class="signal-status" id="statusBadge">待轉換</strong>
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel convert-panel">
+        <form class="convert-form" id="convertForm">
+          <div class="field-row">
+            <label for="docUrl">Google 文件網址</label>
+            <div class="url-action-row">
+              <input id="docUrl" name="docUrl" type="url" required placeholder="https://docs.google.com/document/d/..." />
+              <button type="submit" id="convertButton">
+                <span>轉換</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="status-line">
+            <p class="status" id="status" role="status">貼上 Google 文件網址後即可轉換。</p>
+            <span id="htmlStats">0 字元</span>
+          </div>
+        </form>
+      </section>
+
+      <section class="output-panel" id="outputPanel">
+        <div class="section-header">
+          <div>
+            <div class="section-label compact">
+              <span class="pulse-dot"></span>
+              <span>Generated Code</span>
+            </div>
+            <label for="outputHtml">Blogger HTML code</label>
+            <p id="outputMeta">轉換後的 HTML 會出現在這裡。</p>
+          </div>
+          <div class="copy-actions">
+            <button type="button" id="copyButton" disabled>複製 HTML</button>
+          </div>
+        </div>
+        <textarea id="outputHtml" spellcheck="false" placeholder="按下轉換後，這裡會顯示可貼到 Google Blogger 的 HTML code。"></textarea>
+      </section>
+
+      <details class="panel image-panel" id="imageOptions" hidden>
+        <summary>
+          <span class="summary-title">圖片替換</span>
+          <span id="imageCount">0 張圖片</span>
+        </summary>
+
+        <div class="image-settings">
+          <div class="field-row">
+            <label for="coverImageUrl">封面圖 URL</label>
+            <input id="coverImageUrl" name="coverImageUrl" type="url" placeholder="https://blogger.googleusercontent.com/..." />
+          </div>
+          <div class="image-list" id="imageList"></div>
+        </div>
+      </details>
+    </main>
+
+    <template id="imageTemplate">
+      <article class="image-item">
+        <div class="image-preview"></div>
+        <div class="image-fields">
+          <label></label>
+          <input type="url" placeholder="貼上 Blogger 圖片 URL" />
+          <span class="image-meta"></span>
+          <a class="saved-image-link" target="_blank" rel="noopener">預覽另存圖片</a>
+          <span class="saved-image-path"></span>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

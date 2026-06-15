@@ -1,0 +1,239 @@
+const form = document.querySelector("#convertForm");
+const docUrlInput = document.querySelector("#docUrl");
+const coverImageUrlInput = document.querySelector("#coverImageUrl");
+const convertButton = document.querySelector("#convertButton");
+const copyButton = document.querySelector("#copyButton");
+const outputHtml = document.querySelector("#outputHtml");
+const outputPanel = document.querySelector("#outputPanel");
+const outputMeta = document.querySelector("#outputMeta");
+const statusNode = document.querySelector("#status");
+const statusBadge = document.querySelector("#statusBadge");
+const htmlStats = document.querySelector("#htmlStats");
+const imageOptions = document.querySelector("#imageOptions");
+const imageList = document.querySelector("#imageList");
+const imageCount = document.querySelector("#imageCount");
+const imageTemplate = document.querySelector("#imageTemplate");
+
+let lastImages = [];
+let refreshTimer = 0;
+const initialDocUrl = new URLSearchParams(window.location.search).get("docUrl");
+const localAppUrl = new URL("http://localhost:5173/");
+
+if (initialDocUrl) {
+  docUrlInput.value = initialDocUrl;
+}
+
+if (window.location.protocol === "file:") {
+  if (docUrlInput.value) {
+    localAppUrl.searchParams.set("docUrl", docUrlInput.value);
+  }
+
+  setStatus("目前是用檔案方式開啟，正在切換到本機服務頁面...");
+  setBadge("切換中");
+  window.location.replace(localAppUrl.toString());
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await convert();
+});
+
+copyButton.addEventListener("click", async () => {
+  if (!outputHtml.value.trim()) return;
+  const copied = await copyToClipboard(outputHtml.value);
+  setStatus(copied ? "已複製 HTML，可貼到 Blogger。" : "已選取 HTML，請使用鍵盤複製。");
+  setBadge(copied ? "已複製" : "已選取", "ready");
+});
+
+imageList.addEventListener("input", async (event) => {
+  if (!event.target.matches("input")) return;
+  scheduleOptionalRefresh();
+});
+
+coverImageUrlInput.addEventListener("input", () => {
+  scheduleOptionalRefresh();
+});
+
+outputHtml.addEventListener("input", () => {
+  updateOutputState();
+});
+
+async function convert({ preserveImages = false, quiet = false, scrollToOutput = true } = {}) {
+  const imageUrls = getImageUrls();
+
+  setBusy(true);
+  if (!quiet) {
+    setStatus("轉換中...");
+    setBadge("轉換中");
+  }
+
+  try {
+    const response = await fetch(getApiUrl(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        docUrl: docUrlInput.value,
+        coverImageUrl: coverImageUrlInput.value,
+        imageUrls
+      })
+    });
+
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "轉換失敗。");
+
+    outputHtml.value = payload.articleHtml || "";
+    updateOutputState();
+    if (payload.imageExport?.savedCount > 0 && !quiet) {
+      outputMeta.textContent = `HTML code 已產生，圖片已另存到 ${payload.imageExport.relativeDirectory}。`;
+    }
+
+    if (!preserveImages) {
+      renderImages(payload.images || []);
+    } else {
+      lastImages = payload.images || lastImages;
+      updateImageCount();
+    }
+
+    const warningText = payload.warnings?.length ? ` ${payload.warnings.join(" ")}` : "";
+    setStatus(`完成。${warningText}`.trim(), payload.warnings?.length ? "warn" : "");
+    setBadge("可複製", payload.warnings?.length ? "" : "ready");
+
+    if (!quiet && scrollToOutput) {
+      outputPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  } catch (error) {
+    setStatus(getFriendlyError(error), "error");
+    setBadge("轉換失敗", "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderImages(images) {
+  lastImages = images;
+  imageList.replaceChildren();
+  imageOptions.hidden = images.length === 0;
+
+  for (const image of images) {
+    const fragment = imageTemplate.content.cloneNode(true);
+    const item = fragment.querySelector(".image-item");
+    const preview = fragment.querySelector(".image-preview");
+    const label = fragment.querySelector("label");
+    const input = fragment.querySelector("input");
+    const meta = fragment.querySelector(".image-meta");
+    const savedLink = fragment.querySelector(".saved-image-link");
+    const savedPath = fragment.querySelector(".saved-image-path");
+
+    item.dataset.index = image.index;
+    label.textContent = image.label;
+    input.dataset.index = image.index;
+    meta.textContent = [
+      image.width && `${Math.round(image.width)}px`,
+      image.height && `${Math.round(image.height)}px`,
+      image.saved?.sizeBytes && formatBytes(image.saved.sizeBytes)
+    ]
+      .filter(Boolean)
+      .join(" × ");
+
+    if (image.saved?.url) {
+      savedLink.href = image.saved.url;
+      savedPath.textContent = image.saved.relativePath;
+    } else {
+      savedLink.hidden = true;
+      savedPath.textContent = "未另存：圖片不是可解析的內嵌圖片。";
+    }
+
+    const previewSrc = image.saved?.url || image.src;
+    if (previewSrc) {
+      const img = document.createElement("img");
+      img.src = previewSrc;
+      img.alt = image.alt || image.label;
+      preview.append(img);
+    }
+
+    imageList.append(fragment);
+  }
+
+  updateImageCount();
+}
+
+function updateImageCount() {
+  imageCount.textContent = `${lastImages.length} 張圖片`;
+}
+
+function updateOutputState() {
+  const length = outputHtml.value.length;
+  htmlStats.textContent = `${length.toLocaleString("zh-TW")} 字元`;
+  outputMeta.textContent = length ? "HTML code 已產生。" : "轉換後的 HTML 會出現在這裡。";
+  outputPanel.classList.toggle("has-output", length > 0);
+  copyButton.disabled = convertButton.disabled || length === 0;
+}
+
+function getImageUrls() {
+  const urls = [];
+  imageList.querySelectorAll("input").forEach((input) => {
+    urls[Number(input.dataset.index)] = input.value.trim();
+  });
+  return urls;
+}
+
+function setBusy(isBusy) {
+  convertButton.disabled = isBusy;
+  copyButton.disabled = isBusy || !outputHtml.value.trim();
+}
+
+function setStatus(message, tone = "") {
+  statusNode.textContent = message;
+  statusNode.className = `status ${tone}`.trim();
+}
+
+function setBadge(message, tone = "") {
+  statusBadge.textContent = message;
+  statusBadge.className = `signal-status ${tone}`.trim();
+}
+
+function scheduleOptionalRefresh() {
+  if (!outputHtml.value.trim()) return;
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    convert({ preserveImages: true, quiet: true, scrollToOutput: false });
+  }, 350);
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the selection-based copy path.
+    }
+  }
+
+  outputHtml.focus();
+  outputHtml.select();
+  return document.execCommand("copy");
+}
+
+function getApiUrl() {
+  return window.location.protocol === "file:" ? "http://localhost:5173/api/convert" : "/api/convert";
+}
+
+function getFriendlyError(error) {
+  if (window.location.protocol === "file:") {
+    return "請用 http://localhost:5173 開啟工具，不要直接開 index.html 檔案。";
+  }
+  if (error instanceof TypeError) {
+    return "轉換服務沒有回應，請確認本機服務正在執行。";
+  }
+  return error.message || "轉換失敗。";
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+updateOutputState();

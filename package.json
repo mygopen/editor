@@ -1,0 +1,15 @@
+{
+  "name": "google-docs-blogger-editor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {}
+}
