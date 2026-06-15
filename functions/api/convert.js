@@ -44,7 +44,8 @@ export async function onRequestPost(context) {
         relativeDirectory: "",
         savedCount: 0,
         skippedCount: result.images.length,
-        note: "Cloudflare Pages 部署版不提供本機圖片資料夾；請使用圖片預覽或本機版匯出圖片。"
+        zipUrl: "",
+        note: "Cloudflare Pages 部署版不提供本機圖片資料夾 ZIP；請使用單張下載或本機版匯出全部圖片。"
       }
     });
   } catch (error) {

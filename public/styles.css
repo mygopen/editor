@@ -419,10 +419,25 @@ summary::-webkit-details-marker {
   font-weight: 900;
 }
 
-summary span:last-child {
+.summary-main {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-main span:last-child {
   color: var(--muted-foreground);
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
+}
+
+summary .download-all-button {
+  min-height: 40px;
+  border: 1px solid rgba(0, 82, 255, 0.28);
+  background: rgba(0, 82, 255, 0.06);
+  color: var(--accent);
+  padding: 0 14px;
 }
 
 .image-settings {
@@ -488,6 +503,14 @@ summary span:last-child {
   font-size: 12px;
 }
 
+.image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-image-link,
 .saved-image-link {
   width: max-content;
   color: var(--accent);
@@ -496,6 +519,13 @@ summary span:last-child {
   text-decoration: none;
 }
 
+.download-image-link {
+  border-radius: 999px;
+  background: rgba(0, 82, 255, 0.08);
+  padding: 5px 9px;
+}
+
+.download-image-link:hover,
 .saved-image-link:hover {
   text-decoration: underline;
 }
@@ -568,6 +598,20 @@ summary span:last-child {
   .section-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  summary {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px 18px;
+  }
+
+  .summary-main {
+    justify-content: space-between;
+  }
+
+  .download-all-button {
+    width: 100%;
   }
 
   .copy-actions,

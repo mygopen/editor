@@ -13,8 +13,11 @@ const imageOptions = document.querySelector("#imageOptions");
 const imageList = document.querySelector("#imageList");
 const imageCount = document.querySelector("#imageCount");
 const imageTemplate = document.querySelector("#imageTemplate");
+const downloadImagesButton = document.querySelector("#downloadImagesButton");
 
 let lastImages = [];
+let lastDocId = "";
+let lastImageZipUrl = "";
 let refreshTimer = 0;
 const initialDocUrl = new URLSearchParams(window.location.search).get("docUrl");
 const localAppUrl = new URL("http://localhost:5173/");
@@ -54,6 +57,12 @@ coverImageUrlInput.addEventListener("input", () => {
   scheduleOptionalRefresh();
 });
 
+downloadImagesButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  downloadAllImages();
+});
+
 outputHtml.addEventListener("input", () => {
   updateOutputState();
 });
@@ -82,9 +91,11 @@ async function convert({ preserveImages = false, quiet = false, scrollToOutput =
     if (!response.ok) throw new Error(payload.error || "轉換失敗。");
 
     outputHtml.value = payload.articleHtml || "";
+    lastDocId = payload.docId || "";
+    lastImageZipUrl = payload.imageExport?.zipUrl || "";
     updateOutputState();
     if (payload.imageExport?.savedCount > 0 && !quiet) {
-      outputMeta.textContent = `HTML code 已產生，圖片已另存到 ${payload.imageExport.relativeDirectory}。`;
+      outputMeta.textContent = `HTML code 已產生，圖片可下載，也已暫存在 ${payload.imageExport.relativeDirectory}。`;
     }
 
     if (!preserveImages) {
@@ -122,7 +133,9 @@ function renderImages(images) {
     const input = fragment.querySelector("input");
     const meta = fragment.querySelector(".image-meta");
     const savedLink = fragment.querySelector(".saved-image-link");
+    const downloadLink = fragment.querySelector(".download-image-link");
     const savedPath = fragment.querySelector(".saved-image-path");
+    const download = getImageDownload(image);
 
     item.dataset.index = image.index;
     label.textContent = image.label;
@@ -143,6 +156,13 @@ function renderImages(images) {
       savedPath.textContent = "未另存：圖片不是可解析的內嵌圖片。";
     }
 
+    if (download.href) {
+      downloadLink.href = download.href;
+      downloadLink.download = download.fileName;
+    } else {
+      downloadLink.hidden = true;
+    }
+
     const previewSrc = image.saved?.url || image.src;
     if (previewSrc) {
       const img = document.createElement("img");
@@ -159,6 +179,51 @@ function renderImages(images) {
 
 function updateImageCount() {
   imageCount.textContent = `${lastImages.length} 張圖片`;
+  downloadImagesButton.disabled = !lastImageZipUrl && !lastImages.some((image) => getImageDownload(image).href);
+}
+
+function downloadAllImages() {
+  if (lastImageZipUrl) {
+    triggerDownload(lastImageZipUrl, `${lastDocId || "google-doc"}-images.zip`);
+    setStatus("已開始下載全部圖片 ZIP。");
+    setBadge("下載中", "ready");
+    return;
+  }
+
+  const downloads = lastImages.map(getImageDownload).filter((download) => download.href);
+  if (downloads.length === 0) {
+    setStatus("目前沒有可下載的圖片。", "warn");
+    setBadge("無圖片");
+    return;
+  }
+
+  downloads.forEach((download, index) => {
+    window.setTimeout(() => {
+      triggerDownload(download.href, download.fileName);
+    }, index * 180);
+  });
+  setStatus(`已開始下載 ${downloads.length} 張圖片。`);
+  setBadge("下載中", "ready");
+}
+
+function getImageDownload(image) {
+  const href = image.saved?.url || image.src || "";
+  if (!href) return { href: "", fileName: "" };
+
+  return {
+    href,
+    fileName: image.saved?.fileName || `image-${String(image.index + 1).padStart(2, "0")}.${inferImageExtension(href)}`
+  };
+}
+
+function triggerDownload(href, fileName) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function updateOutputState() {
@@ -234,6 +299,24 @@ function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function inferImageExtension(src) {
+  const mimeMatch = String(src).match(/^data:image\/([a-z0-9.+-]+);/i);
+  if (mimeMatch) {
+    const mimeExtension = mimeMatch[1].toLowerCase();
+    return mimeExtension === "jpeg" ? "jpg" : mimeExtension;
+  }
+
+  try {
+    const pathname = new URL(src, window.location.href).pathname;
+    const extension = pathname.split(".").pop()?.toLowerCase();
+    if (/^(gif|jpe?g|png|webp)$/.test(extension || "")) return extension;
+  } catch {
+    // Keep the generic fallback below.
+  }
+
+  return "png";
 }
 
 updateOutputState();

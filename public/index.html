@@ -71,8 +71,11 @@
 
       <details class="panel image-panel" id="imageOptions" hidden>
         <summary>
-          <span class="summary-title">圖片替換</span>
-          <span id="imageCount">0 張圖片</span>
+          <span class="summary-main">
+            <span class="summary-title">圖片下載與替換</span>
+            <span id="imageCount">0 張圖片</span>
+          </span>
+          <button type="button" class="download-all-button" id="downloadImagesButton" disabled>下載全部圖片</button>
         </summary>
 
         <div class="image-settings">
@@ -92,7 +95,10 @@
           <label></label>
           <input type="url" placeholder="貼上 Blogger 圖片 URL" />
           <span class="image-meta"></span>
-          <a class="saved-image-link" target="_blank" rel="noopener">預覽另存圖片</a>
+          <div class="image-actions">
+            <a class="download-image-link">下載圖片</a>
+            <a class="saved-image-link" target="_blank" rel="noopener">預覽另存圖片</a>
+          </div>
           <span class="saved-image-path"></span>
         </div>
       </article>

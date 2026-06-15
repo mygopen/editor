@@ -1,7 +1,9 @@
 import express from "express";
 import path from "node:path";
+import { readdir, readFile } from "node:fs/promises";
 import { convertGoogleDocHtml, extractGoogleDocId } from "./src/converter.js";
 import { saveExtractedImages } from "./src/image-exporter.js";
+import { createStoredZip } from "./src/zip.js";
 
 const app = express();
 const port = process.env.PORT || 5173;
@@ -10,6 +12,46 @@ const imageExportRoot = path.resolve("exported-images");
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
 app.use("/exported-images", express.static(imageExportRoot));
+
+app.get("/api/images/:docId.zip", async (req, res) => {
+  try {
+    const docId = extractGoogleDocId(req.params.docId || "");
+    if (!docId) {
+      res.status(400).send("Invalid Google document id.");
+      return;
+    }
+
+    const imageDir = path.join(imageExportRoot, docId);
+    const files = (await readdir(imageDir, { withFileTypes: true }))
+      .filter((file) => file.isFile() && /^image-\d+\.(?:gif|jpe?g|png|webp)$/i.test(file.name))
+      .sort((a, b) => a.name.localeCompare(b.name, "en"));
+
+    if (files.length === 0) {
+      res.status(404).send("No exported images found.");
+      return;
+    }
+
+    const entries = await Promise.all(
+      files.map(async (file) => ({
+        name: file.name,
+        data: await readFile(path.join(imageDir, file.name))
+      }))
+    );
+    const zip = createStoredZip(entries);
+    const fileName = `${docId}-images.zip`;
+
+    res.setHeader("content-type", "application/zip");
+    res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("content-length", String(zip.byteLength));
+    res.send(zip);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      res.status(404).send("No exported images found.");
+      return;
+    }
+    res.status(500).send(error.message || "Failed to build image zip.");
+  }
+});
 
 app.post("/api/convert", async (req, res) => {
   try {
@@ -67,7 +109,8 @@ app.post("/api/convert", async (req, res) => {
         directory: imageExport.directory,
         relativeDirectory: imageExport.relativeDirectory,
         savedCount: imageExport.savedCount,
-        skippedCount: imageExport.skippedCount
+        skippedCount: imageExport.skippedCount,
+        zipUrl: imageExport.savedCount > 0 ? `/api/images/${encodeURIComponent(docId)}.zip` : ""
       }
     });
   } catch (error) {
