@@ -149,3 +149,33 @@ test("convertGoogleDocHtml supports field template drafts with write-here boxes"
   assert.match(result.articleHtml, /資料來源：<br \/><br \/>資料單位 -<br \/><a href="https:\/\/example\.com\/source">資料標題<\/a>/);
   assert.match(result.articleHtml, /延伸閱讀：<br \/><br \/><a href="https:\/\/example\.com\/read">延伸文章<\/a>/);
 });
+
+test("convertGoogleDocHtml merges split Google Docs source links", () => {
+  const splitSourceDraft = String.raw`<html><body>
+    <p>你可以先知道：</p>
+    <p>（1）破解資訊一。</p>
+    <p>導言摘要段：導言。</p>
+    <p>首圖：[img]大標：</p>
+    <p>網傳測試謠言？</p>
+    <p>原始謠傳版本：謠言本體。</p>
+    <p>主要流傳這個影像：[img]/[video]</p>
+    <p>並在社群平台流傳：[img]</p>
+    <p>查證解釋：查證內容。</p>
+    <p>資料來源：NOW News -<a href="https://www.google.com/url?q=https://example.com/news&amp;sa=D&amp;ust=1">&nbsp;</a><a href="https://www.google.com/url?q=https://example.com/news&amp;sa=D&amp;ust=2">北市敬老卡升級！蔣萬安宣布：</a><a href="https://www.google.com/url?q=https://example.com/news&amp;sa=D&amp;ust=3">300</a><a href="https://www.google.com/url?q=https://example.com/news&amp;sa=D&amp;ust=4">點開放超商、超市、藥局都可用</a></p>
+    <p>YouTube -<a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=5">&nbsp;</a><a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=6">臺北市議會</a><a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=7">&nbsp;</a><a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=8">第</a><a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=9">14</a><a href="https://www.google.com/url?q=https://www.youtube.com/watch%3Fv%3DFcLOiC-8GE0&amp;sa=D&amp;ust=10">屆第07次定期大會市政總質詢</a></p>
+  </body></html>`;
+
+  const result = convertGoogleDocHtml(splitSourceDraft);
+
+  assert.ok(
+    result.articleHtml.includes(
+      'NOW News -<br /><a href="https://example.com/news">北市敬老卡升級！蔣萬安宣布：300點開放超商、超市、藥局都可用</a>'
+    )
+  );
+  assert.ok(
+    result.articleHtml.includes(
+      'YouTube -<br /><a href="https://www.youtube.com/watch?v=FcLOiC-8GE0">臺北市議會 第14屆第07次定期大會市政總質詢</a>'
+    )
+  );
+  assert.doesNotMatch(result.articleHtml, /宣布：<\/a><br \/><a href="https:\/\/example\.com\/news">300<\/a>/);
+});

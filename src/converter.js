@@ -587,12 +587,14 @@ function renderImagePlaceholder(label) {
 }
 
 function renderInlineChildren($, element, classStyles) {
-  return $(element)
+  const html = $(element)
     .contents()
     .toArray()
     .map((child) => renderInlineNode($, child, classStyles))
     .join("")
     .replace(/\u00a0/g, " ");
+
+  return mergeAdjacentSameHrefLinks(html);
 }
 
 function renderInlineNode($, node, classStyles) {
@@ -634,14 +636,30 @@ function renderInlineNode($, node, classStyles) {
 }
 
 function extractLinks($, element) {
-  return $(element)
+  const links = [];
+
+  for (const anchor of $(element)
     .find("a")
-    .toArray()
-    .map((anchor) => ({
-      href: cleanHref($(anchor).attr("href") || ""),
-      text: normalizeText($(anchor).text())
+    .toArray()) {
+    const href = cleanHref($(anchor).attr("href") || "");
+    if (!href) continue;
+
+    const text = normalizeInlineText($(anchor).text());
+    const previous = links.at(-1);
+    if (previous?.href === href) {
+      previous.text += text;
+      continue;
+    }
+
+    links.push({ href, text });
+  }
+
+  return links
+    .map((link) => ({
+      ...link,
+      text: normalizeText(link.text)
     }))
-    .filter((link) => link.href);
+    .filter((link) => link.text);
 }
 
 function getImageDimensions($, image) {
@@ -745,6 +763,25 @@ function normalizeText(text) {
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+/g, " ")
     .trim();
+}
+
+function normalizeInlineText(text) {
+  return String(text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\r\n\t ]+/g, " ");
+}
+
+function mergeAdjacentSameHrefLinks(html) {
+  let output = String(html || "");
+  let previous = "";
+  const adjacentLinkPattern = /<a href="([^"]+)">([\s\S]*?)<\/a><a href="\1">([\s\S]*?)<\/a>/g;
+
+  while (output !== previous) {
+    previous = output;
+    output = output.replace(adjacentLinkPattern, '<a href="$1">$2$3</a>');
+  }
+
+  return output;
 }
 
 function numberOrNull(value) {
