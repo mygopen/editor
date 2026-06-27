@@ -473,21 +473,7 @@ function renderYesTrue(blocks, options) {
         };
       }
 
-      if (block.type === "heading" || isConclusionHeading(block)) {
-        return {
-          type: "heading",
-          html: `<h3 style="text-align: left;">${escapeHtml(stripTrailingColon(block.text))}</h3>`
-        };
-      }
-
-      if (block.type === "paragraph") {
-        if (isNumberedSectionHeading(block)) {
-          return {
-            type: "heading",
-            html: `<h3 style="text-align: left;">${escapeHtml(stripTrailingColon(block.text))}</h3>`
-          };
-        }
-
+      if (block.type === "heading" || block.type === "paragraph") {
         return {
           type: "paragraph",
           html: stripWholeBold(block.html)
@@ -739,14 +725,6 @@ function findIndexFrom(blocks, start, predicate) {
 function firstExistingIndex(indices, fallback) {
   const existing = indices.filter((index) => index >= 0);
   return existing.length > 0 ? Math.min(...existing) : fallback;
-}
-
-function isConclusionHeading(block) {
-  return block.type === "paragraph" && stripTrailingColon(block.text).replace(/\s/g, "") === "結論";
-}
-
-function isNumberedSectionHeading(block) {
-  return block.type === "paragraph" && /^（[一二三四五六七八九十]+）/.test(block.text);
 }
 
 function isMarkerText(text) {

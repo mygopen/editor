@@ -62,7 +62,8 @@ test("convertGoogleDocHtml emits MyGoPen-style Blogger HTML", () => {
   assert.match(result.articleHtml, /<img src="https:\/\/blogger\.googleusercontent\.com\/inline\.jpg" \/>/);
   assert.match(result.articleHtml, /<b><span style="color: red;">紅色粗體<\/span><\/b>/);
   assert.match(result.articleHtml, /<a href="https:\/\/example\.com\/a">連結<\/a>/);
-  assert.match(result.articleHtml, /<h3 style="text-align: left;">結論<\/h3><br \/>結論文字。/);
+  assert.doesNotMatch(result.articleHtml, /<h3 style="text-align: left;">/);
+  assert.match(result.articleHtml, /結論<br \/><br \/>結論文字。/);
   assert.match(result.articleHtml, /資料單位 -<br \/><a href="https:\/\/example\.com\/source">來源一<\/a><br \/><a href="https:\/\/example\.com\/source-2">來源二<\/a>/);
   assert.match(result.articleHtml, /延伸閱讀：<br \/><br \/><a href="https:\/\/example\.com\/read">延伸一<\/a>/);
 });
@@ -101,7 +102,8 @@ test("convertGoogleDocHtml supports paragraph-based drafts with content marker",
   assert.match(result.articleHtml, /<br \/>原始謠傳版本：<br \/>/);
   assert.match(result.articleHtml, /<blockquote class="tr_bq">用鼻子呼吸，不要用嘴巴呼吸，保持心臟年輕\n影片逐字稿。<\/blockquote>/);
   assert.match(result.articleHtml, /主要流傳這段影片：/);
-  assert.match(result.articleHtml, /<h3 style="text-align: left;">（一）第一段查證標題<\/h3>/);
+  assert.doesNotMatch(result.articleHtml, /<h3 style="text-align: left;">/);
+  assert.match(result.articleHtml, /（一）第一段查證標題<br \/><br \/>查證內容。/);
   assert.match(result.articleHtml, /衛教資源：<br \/><br \/>國科會 科技大觀園 一氧化氮醫學<br \/>諮詢專家：<br \/>新光醫院健康管理部醫療副主任、家醫科醫師 - 柳朋馳/);
   assert.match(result.articleHtml, /延伸閱讀：<br \/><br \/><a href="https:\/\/example\.com\/read">延伸文章<\/a>/);
 });
@@ -145,7 +147,8 @@ test("convertGoogleDocHtml supports field template drafts with write-here boxes"
     )
   );
   assert.match(result.articleHtml, /查證解釋：<br \/>/);
-  assert.match(result.articleHtml, /<h3 style="text-align: left;">結論<\/h3><br \/>結論內容。/);
+  assert.doesNotMatch(result.articleHtml, /<h3 style="text-align: left;">/);
+  assert.match(result.articleHtml, /結論：<br \/><br \/>結論內容。/);
   assert.match(result.articleHtml, /資料來源：<br \/><br \/>資料單位 -<br \/><a href="https:\/\/example\.com\/source">資料標題<\/a>/);
   assert.match(result.articleHtml, /延伸閱讀：<br \/><br \/><a href="https:\/\/example\.com\/read">延伸文章<\/a>/);
 });
