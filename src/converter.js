@@ -19,9 +19,10 @@ export function extractGoogleDocId(input) {
 }
 
 export function convertGoogleDocHtml(sourceHtml, options = {}) {
-  const $ = cheerio.load(sourceHtml);
+  const preparedSource = prepareSourceHtml(sourceHtml);
+  const $ = cheerio.load(preparedSource.html);
   const classStyles = parseClassStyles($("style").text() || "");
-  const blocks = extractBlocks($, classStyles);
+  const blocks = extractBlocks($, classStyles, preparedSource.imageSources);
   const images = blocks
     .filter((block) => block.type === "image")
     .map(({ src, width, height, alt, imageIndex }) => ({
@@ -45,7 +46,20 @@ export function convertGoogleDocHtml(sourceHtml, options = {}) {
   };
 }
 
-function extractBlocks($, classStyles) {
+function prepareSourceHtml(sourceHtml) {
+  const imageSources = [];
+  const html = String(sourceHtml || "").replace(
+    /(<img\b[^>]*\bsrc=(["']))(data:image\/[^"']+)(\2)/gi,
+    (match, prefix, quote, src, suffix) => {
+      const imageIndex = imageSources.push(src) - 1;
+      return `${prefix}__BLOGGER_IMAGE_${imageIndex}__${suffix}`;
+    }
+  );
+
+  return { html, imageSources };
+}
+
+function extractBlocks($, classStyles, imageSources = []) {
   const blocks = [];
   let imageIndex = 0;
 
@@ -90,7 +104,7 @@ function extractBlocks($, classStyles) {
         blocks.push({
           type: "image",
           imageIndex,
-          src: $(image).attr("src") || "",
+          src: restoreImageSource($(image).attr("src") || "", imageSources),
           alt: $(image).attr("alt") || "",
           ...dimensions
         });
@@ -103,6 +117,13 @@ function extractBlocks($, classStyles) {
     });
 
   return blocks;
+}
+
+function restoreImageSource(src, imageSources) {
+  const match = String(src || "").match(/^__BLOGGER_IMAGE_(\d+)__$/);
+  if (!match) return src;
+
+  return imageSources[Number(match[1])] || "";
 }
 
 function buildBloggerHtml(blocks, options, warnings) {

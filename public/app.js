@@ -87,7 +87,7 @@ async function convert({ preserveImages = false, quiet = false, scrollToOutput =
       })
     });
 
-    const payload = await response.json();
+    const payload = await readApiResponse(response);
     if (!response.ok) throw new Error(payload.error || "轉換失敗。");
 
     outputHtml.value = payload.articleHtml || "";
@@ -282,6 +282,57 @@ async function copyToClipboard(text) {
 
 function getApiUrl() {
   return window.location.protocol === "file:" ? "http://localhost:5173/api/convert" : "/api/convert";
+}
+
+async function readApiResponse(response) {
+  const text = await response.text();
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text || "{}");
+    } catch {
+      throw new Error("轉換服務回傳的 JSON 格式異常，請重新整理後再試。");
+    }
+  }
+
+  if (!text.trim()) {
+    throw new Error(`轉換服務沒有回傳內容（HTTP ${response.status}）。`);
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(describeNonJsonResponse(response, text));
+  }
+}
+
+function describeNonJsonResponse(response, text) {
+  const title = extractHtmlTitle(text);
+  const statusText = response.status ? `HTTP ${response.status}` : "非 JSON 回應";
+
+  if (/Worker exceeded resource limits/i.test(text)) {
+    return `轉換服務超過 Cloudflare 資源限制（${statusText}）。通常是 Google 文件內嵌圖片太大，請稍後重試或先用本機版轉換。`;
+  }
+
+  if (response.status === 404) {
+    return `找不到轉換 API（${statusText}）。請確認網站部署包含 Cloudflare Pages Functions。`;
+  }
+
+  if (/^<!doctype html/i.test(text.trim()) || /<html[\s>]/i.test(text)) {
+    return `轉換 API 回傳 HTML 錯誤頁（${statusText}${title ? `：${title}` : ""}），不是 JSON。`;
+  }
+
+  return `轉換 API 回傳非 JSON 內容（${statusText}）。`;
+}
+
+function extractHtmlTitle(text) {
+  const match = String(text || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!match) return "";
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = match[1].replace(/\s+/g, " ").trim();
+  return textarea.value;
 }
 
 function getFriendlyError(error) {

@@ -182,3 +182,28 @@ test("convertGoogleDocHtml merges split Google Docs source links", () => {
   );
   assert.doesNotMatch(result.articleHtml, /宣布：<\/a><br \/><a href="https:\/\/example\.com\/news">300<\/a>/);
 });
+
+test("convertGoogleDocHtml preserves data URL images after compact parsing", () => {
+  const dataUrl = `data:image/png;base64,${"a".repeat(2048)}`;
+  const imageDraft = String.raw`<html><body>
+    <p>你可以先知道：</p>
+    <p>（1）破解資訊一。</p>
+    <p>導言摘要段：導言。</p>
+    <p>首圖：[img]大標：</p>
+    <p>網傳測試謠言？</p>
+    <p>原始謠傳版本：謠言本體。</p>
+    <p>主要流傳這個影像：[img]/[video]</p>
+    <p><span><img src="${dataUrl}" style="width: 640.00px; height: 360.00px;" alt="測試圖片"></span></p>
+    <p>並在社群平台流傳：[img]</p>
+    <p>查證解釋：查證內容。</p>
+    <p>資料來源：資料來源文字</p>
+  </body></html>`;
+
+  const result = convertGoogleDocHtml(imageDraft);
+
+  assert.equal(result.images.length, 1);
+  assert.equal(result.images[0].src, dataUrl);
+  assert.equal(result.images[0].width, 640);
+  assert.equal(result.images[0].height, 360);
+  assert.doesNotMatch(result.articleHtml, /__BLOGGER_IMAGE_/);
+});
